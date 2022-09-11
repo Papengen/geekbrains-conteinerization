@@ -1,0 +1,87 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  serviceName: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      initContainers:
+      - image: busybox
+        name: mount-permissions-fix
+        command: ["sh", "-c", "chmod 777 /prometheus"]
+        volumeMounts:
+        - name: data
+          mountPath: /prometheus
+
+      serviceAccount: prometheus
+
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.19.2
+        env:
+        
+        startupProbe:
+          tcpSocket:
+            port: 9090
+          failureThreshold: 100
+          periodSeconds: 3
+        readinessProbe:
+          tcpSocket:
+            port: 9090
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+        livenessProbe:
+          tcpSocket:
+            port: 9090
+          initialDelaySeconds: 20
+          periodSeconds: 20
+          failureThreshold: 5 
+          successThreshold: 1
+        resources:
+          requests:
+            cpu: 500m
+            memory: 500M
+          limits:
+            cpu: 1
+            memory: 1Gi
+        ports:
+        - containerPort: 9090
+          protocol: TCP
+
+        imagePullPolicy: IfNotPresent
+
+        volumeMounts:
+        - name: data
+          mountPath: /prometheus
+        - name: prometheus-config-volume
+          mountPath: /etc/prometheus
+      volumes:
+        - name: prometheus-config-volume
+          configMap:
+            defaultMode: 420
+            name: prometheus-config
+     
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: "csi-high-iops-ms1"
+      resources:
+        requests:
+          storage: 5Gi
