@@ -2,16 +2,16 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: postgres
+  name: database
   labels:
-    app: postgres
+    app: database
   namespace: workspace
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: postgres
-  serviceName: postgres
+      app: database
+  serviceName: database
 #  strategy:
 #    type: RollingUpdate
 #    rollingUpdate:
@@ -20,12 +20,18 @@ spec:
   template:
     metadata:
       labels:
-        app: postgres
+        app: database
     spec:
       containers:
-      - name: postgres
+      - name: database
         image: postgres:10.13
         env:
+        - name: REDMINE_DB_POSTGRES
+          valueFrom:
+            secretKeyRef:
+              name: db
+              key: redmine_db_postgres
+
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
